@@ -194,7 +194,13 @@ class InitTests(unittest.TestCase):
         self.assertEqual(old_skill.read_text(encoding="utf-8"), "old")
 
     def test_invalid_paths_urls_and_directory_collisions(self) -> None:
-        for value in ("../outside", ".ai-architect/specs", str(self.root / "absolute"), "C:\\outside"):
+        for value in (
+            "../outside",
+            ".ai-architect/specs",
+            ".AI-ARCHITECT/specs",
+            str(self.root / "absolute"),
+            "C:\\outside",
+        ):
             with self.subTest(diagrams_dir=value), self.assertRaises(InitError):
                 initialize_project(self.root, diagrams_dir=value)
         for value in ("ftp://host", "http://host:bad", "http://user:pass@host", "http://host/?key=x"):
@@ -205,6 +211,20 @@ class InitTests(unittest.TestCase):
         (self.root / ".ai-architect").write_text("file", encoding="utf-8")
         with self.assertRaisesRegex(InitError, "directory"):
             initialize_project(self.root)
+
+    def test_configured_diagram_path_cannot_alias_managed_workspace(self) -> None:
+        initialize_project(self.root)
+        path = self._workspace() / "config.json"
+        data = self._config()
+        data["diagrams_dir"] = ".AI-ARCHITECT/specs"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        user_diagram = self._workspace() / "specs" / "user.puml"
+        user_diagram.write_text("@startuml\n@enduml\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(InitError, "outside .ai-architect"):
+            initialize_project(self.root)
+
+        self.assertTrue(user_diagram.is_file())
 
     def test_reparse_or_symlink_destination_is_rejected(self) -> None:
         outside = self.root / "outside"

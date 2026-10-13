@@ -128,8 +128,10 @@ def _normalize_diagrams_dir(value: str) -> str:
     if not parts or any(part == ".." for part in parts):
         raise InitError("diagrams_dir must not contain '..'")
     normalized = Path(*parts).as_posix()
-    if normalized in ("", ".") or normalized.split("/")[0] == WORKSPACE_DIR:
+    if normalized in ("", ".") or normalized.split("/")[0].casefold() == WORKSPACE_DIR.casefold():
+        LOGGER.error("[FIX] Rejected diagram directory overlapping managed workspace: %s", value)
         raise InitError("diagrams_dir must be outside .ai-architect and below the project root")
+    LOGGER.debug("[FIX] Accepted diagram directory outside managed workspace: %s", normalized)
     return normalized
 
 

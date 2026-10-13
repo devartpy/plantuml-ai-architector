@@ -69,8 +69,7 @@ your-project/
 │   ├── skills/                   # Managed agent workflow action profiles (Refreshed on reruns)
 │   │   ├── plantuml-create/SKILL.md
 │   │   └── self-correct/SKILL.md
-│   └── references/               # Evolving local project-level rule guards (Preserved on reruns)
-│       └── sequence_rules.md
+│   └── references/               # Empty initially; learned project rules are preserved on reruns
 └── docs/architecture/diagrams/   # Default directory where AI saves .puml files
 ```
 
@@ -80,13 +79,13 @@ your-project/
 
 ## 🧠 The Evolving Self-Correction Loop
 
-The environment doesn't just pass static prompts to your AI; it forces the agent to learn from compilation failures natively:
+After you connect the PlantUML MCP server and make the skills available to your agent, the `self-correct` workflow can capture lessons from confirmed syntax failures:
 
 1. **Failure Interception:** If the agent generates a diagram that breaks PlantUML syntax, it can follow the `self-correct` skill workflow.
 2. **Autonomous Repair:** The agent analyzes the error logs via the local MCP server context, applies structural patches, and attempts to re-compile (up to 3 times).
 3. **Knowledge Capture:** Once the syntax repair is confirmed, the agent writes a reusable English guard rule inside `.ai-architect/references/<diagram_type>_rules.md`.
 
-Future generation loops will automatically look inside the `references/` folder and prioritize your project-specific rules over the default specifications, preventing the agent from repeating historical mistakes.
+When the agent follows the bundled create or modify skills, it reads matching rules from `references/` and prioritizes them over baseline modeling guidance. See the [agent setup guide](docs/agent-setup.md) for the required client configuration.
 
 ---
 

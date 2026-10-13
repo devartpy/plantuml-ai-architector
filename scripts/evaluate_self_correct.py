@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
+from xml.etree import ElementTree
 
 from ai_architect.core import PLANTUML_MCP_PACKAGE, initialize_project
 
@@ -58,8 +59,8 @@ def assert_workspace_changes(
     LOGGER.info("[FIX] Workspace changes restricted to %s", ", ".join(sorted(changed)) or "none")
 
 
-def candidate_attempts(jsonl: str, original: str) -> int:
-    """Count distinct changed sources actually submitted to the PlantUML MCP tool."""
+def renderer_candidates(jsonl: str, original: str) -> set[str]:
+    """Find distinct changed sources actually submitted to the PlantUML MCP tool."""
     candidates: set[str] = set()
     saw_tool = False
     saw_source = False
@@ -95,7 +96,46 @@ def candidate_attempts(jsonl: str, original: str) -> int:
     if not saw_tool or not saw_source:
         raise AssertionError("Codex trace has no inspectable PlantUML MCP render call")
     LOGGER.info("[FIX] Observed %d distinct changed renderer submissions", len(candidates))
-    return len(candidates)
+    return candidates
+
+
+def candidate_attempts(jsonl: str, original: str) -> int:
+    """Count distinct changed sources actually submitted to the PlantUML MCP tool."""
+    return len(renderer_candidates(jsonl, original))
+
+
+def verify_saved_diagram(diagram: Path, renderer_url: str, candidates: set[str]) -> None:
+    """Render the exact saved repair independently of the agent's reported result."""
+    source = diagram.read_text(encoding="utf-8")
+    if source not in candidates:
+        raise AssertionError("saved repair was not submitted to the PlantUML MCP renderer")
+    url = f"{renderer_url.rstrip('/')}/svg/~h{source.encode('utf-8').hex()}"
+    try:
+        with urlopen(url, timeout=15) as response:  # noqa: S310 - explicit operator-supplied renderer URL
+            if response.headers.get_content_type() != "image/svg+xml":
+                raise AssertionError("final diagram renderer did not return SVG")
+            svg = ElementTree.fromstring(response.read())
+    except HTTPError as error:
+        LOGGER.error("[FIX] Final diagram render failed with HTTP %d", error.code)
+        raise AssertionError(f"final diagram renderer returned HTTP {error.code}") from error
+    except (OSError, URLError, ElementTree.ParseError) as error:
+        LOGGER.error("[FIX] Final diagram render could not be inspected: %s", type(error).__name__)
+        raise AssertionError("final diagram render could not be inspected") from error
+    if svg.tag != "{http://www.w3.org/2000/svg}svg" or "Syntax Error" in "".join(svg.itertext()):
+        raise AssertionError("final diagram renderer returned an error image")
+    LOGGER.info("[FIX] Saved diagram independently rendered as clean SVG: %s", diagram.name)
+
+
+def verify_rule_file(rules: Path) -> None:
+    """Require a persisted, structured prevention rule rather than an empty marker file."""
+    if not rules.is_file():
+        raise AssertionError("successful repair did not leave a project rule")
+    lines = rules.read_text(encoding="utf-8").splitlines()
+    fields = ("### ", "- **Issue:**", "- **Fix Rule:**", "- **Evidence:**")
+    if not all(any(line.startswith(field) and line[len(field) :].strip() for line in lines) for field in fields):
+        LOGGER.error("[FIX] Missing or empty prevention-rule field in %s", rules.name)
+        raise AssertionError("successful repair left an incomplete project rule")
+    LOGGER.info("[FIX] Confirmed persisted prevention rule: %s", rules.name)
 
 
 def assert_attempt_budget(attempts: int) -> None:
@@ -196,7 +236,8 @@ def run_scenario(name: str, scenario: dict[str, str], agent: str, renderer_url: 
             raise AssertionError(f"status {report['status']} != {scenario['expected_status']}")
         if report["rule_result"] != scenario["expected_rule"]:
             raise AssertionError(f"rule result {report['rule_result']} != {scenario['expected_rule']}")
-        attempts = candidate_attempts(completed.stdout, original_diagram.decode("utf-8"))
+        candidates = renderer_candidates(completed.stdout, original_diagram.decode("utf-8"))
+        attempts = len(candidates)
         assert_attempt_budget(attempts)
         if type(report["attempt_count"]) is not int or report["attempt_count"] != attempts:
             raise AssertionError(f"reported attempts {report['attempt_count']} != observed {attempts}")
@@ -206,8 +247,8 @@ def run_scenario(name: str, scenario: dict[str, str], agent: str, renderer_url: 
             source = diagram.read_text(encoding="utf-8")
             if "Alice -> Bob: hello" not in source or "this is invalid syntax ???" in source:
                 raise AssertionError("repair lost the required message or retained the invalid line")
-            if not rules.is_file():
-                raise AssertionError("successful repair did not leave a project rule")
+            verify_saved_diagram(diagram, renderer_url, candidates)
+            verify_rule_file(rules)
             if name == "duplicate_rule" and rules.read_bytes() != original_rule:
                 raise AssertionError("equivalent project rule was duplicated or changed")
         else:
