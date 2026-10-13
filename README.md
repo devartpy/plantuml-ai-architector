@@ -2,6 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/Python3.10+-blue)](https://python.org)
 [![Architecture as Code](https://img.shields.io/badge/Architecture_as_Code-orange)](#)
+[![License](https://img.shields.io/badge/License:_MIT-green)](LICENSE)
 
 An installable Python CLI designed to set up structured, **Spec-Driven PlantUML workflows** directly within your software repositories. It acts as an orchestrator that enables advanced AI agents (such as *Cursor, Codex, or Claude Code*) to generate, validate, and maintain architectural blueprints deterministically.
 
