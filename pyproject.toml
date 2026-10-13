@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plantuml-ai-architect"
+version = "0.1.0"
+description = "CLI tools and bundled templates for AI-assisted PlantUML architecture."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["colorama>=0.4.6,<1"]
+
+[project.urls]
+Repository = "https://github.com/devartpy/plantuml-ai-architector"
+Issues = "https://github.com/devartpy/plantuml-ai-architector/issues"
+
+[project.scripts]
+ai-architect = "ai_architect.cli:main"
+
+[tool.setuptools]
+packages = ["ai_architect", "ai_architect.templates"]
+package-dir = { ai_architect = "src/ai_architect", "ai_architect.templates" = "templates" }
+
+[tool.setuptools.package-data]
+"ai_architect.templates" = ["specs/*", "skills/*", "skills/*/*"]
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
+include = '\.pyi?$'
+extend-exclude = '''
+# A regex preceded with / to apply to the absolute path
+/(
+  alembic/versions
+  | migrations
+  | venv
+  | .venv
+  | __pycache__
+  | .pytest_cache
+  | htmlcov
+)/
+'''
+
+# Skip magic trailing comma
+skip-magic-trailing-comma = false
+
+# String normalization
+skip-string-normalization = false
+
+# Preview style
+preview = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# Ignore RUF003: Comment contains ambiguous unicode characters
+ignore = ["RUF003"]
+
+# Какие правила проверять (E/W - ошибки стиля Pep8, F - поиск багов Pyflakes, I - сортировка импортов)
+select = ["E", "W", "F", "I"]
+
+# Автоматически исправлять то, что можно исправить без вреда коду
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Стиль кавычек: "double" (двойные) или "single" (одинарные)
+quote-style = "double"
+
+# Использовать пробелы вместо табуляции
+indent-style = "space"
+
+# Настройка окончаний строк
+line-ending = "auto"

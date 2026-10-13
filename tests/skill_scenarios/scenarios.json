@@ -1,0 +1,45 @@
+{
+  "repair": {
+    "skill": "self-correct",
+    "requirements": "Create a sequence diagram where Alice sends hello to Bob. The invalid third line is accidental and may be removed.",
+    "expected_status": "PASS",
+    "expected_rule": "added"
+  },
+  "duplicate_rule": {
+    "skill": "self-correct",
+    "requirements": "Create a sequence diagram where Alice sends hello to Bob. The invalid third line is accidental and may be removed.",
+    "expected_status": "PASS",
+    "expected_rule": "already_present",
+    "existing_rule": "### Remove invalid sequence text\n- **Issue:** A free-form line causes a PlantUML sequence syntax error.\n- **Fix Rule:** Remove invalid free-form text from sequence diagrams.\n- **Evidence:** An invalid third line was removed after a line-3 syntax diagnostic.\n"
+  },
+  "conflicting_constraints": {
+    "skill": "self-correct",
+    "requirements": "Preserve every source line byte for byte, including the invalid third line, while returning a syntactically valid diagram. Do not change or remove the invalid line.",
+    "expected_status": "FAIL",
+    "expected_rule": "none"
+  },
+  "outage": {
+    "skill": "self-correct",
+    "requirements": "Create a sequence diagram where Alice sends hello to Bob. Diagnose the source only through the configured renderer; if it is unavailable, leave the file unchanged.",
+    "expected_status": "BLOCKED",
+    "expected_rule": "none"
+  },
+  "semantic": {
+    "skill": "plantuml-verify",
+    "requirements": "Bob must send hello to Alice. No message from Alice to Bob is allowed.",
+    "expected_status": "FAIL",
+    "expected_rule": "none"
+  },
+  "read_only": {
+    "skill": "plantuml-verify",
+    "requirements": "Alice must send hello to Bob. Verify without editing the diagram or references.",
+    "expected_status": "PASS",
+    "expected_rule": "none"
+  },
+  "preexisting": {
+    "skill": "plantuml-modify",
+    "requirements": "Add a reply from Bob to Alice. The existing invalid third line is unrelated to the requested change; do not fix it without permission.",
+    "expected_status": "BLOCKED",
+    "expected_rule": "none"
+  }
+}
