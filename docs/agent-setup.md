@@ -2,29 +2,160 @@
 
 # Agent Setup
 
-`init` creates `.ai-architect/mcp-config-example.json`; agents do not load this
-file automatically. It defines an `mcpServers.plantuml` entry that launches the
-pinned `plantuml-mcp-server@0.2.4` through `npx -y`. Install Node.js 18+ and npm
-where the agent runs. The first launch may download the npm package. The
-`PLANTUML_SERVER_URL` value is the renderer from `config.json`, not an MCP URL.
-The [PlantUML MCP server](https://github.com/infobip/plantuml-mcp-server) provides
-rendering and encode/decode tools; the renderer alone does not expose MCP tools.
-When asked to save rendered files, that server limits output to its working
-directory by default.
+`init` creates `.ai-architect/mcp-config-example.json`; agents do not load this file automatically. It defines an `mcpServers.plantuml` entry that launches the pinned `plantuml-mcp-server@0.2.4` through `npx -y`. Install Node.js 18+ and npm where the agent runs. The first launch may download the npm package.
+
+The `PLANTUML_SERVER_URL` value is the renderer from `config.json`, not an MCP URL. The [PlantUML MCP server](https://github.com/infobip/plantuml-mcp-server) provides rendering and encode/decode tools; the renderer alone does not expose MCP tools. When asked to save rendered files, that server limits output to its working directory by default.
+
+---
+
+## Make the Skills Available
+
+Run `ai-architect init` **in the project where you want to draw diagrams**. It places the four skills in `.ai-architect/skills/`, but that package-managed directory is not a standard skill-discovery location. Expose the **skill folders** in your agent's discovery directory based on the table below:
+
+| Agent | Destination in the target project | Invoke after setup |
+| --- | --- | --- |
+| [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/<skill-name>/SKILL.md` | `/plantuml-create` |
+| [Codex](https://learn.chatgpt.com/docs/build-skills) | `.agents/skills/<skill-name>/SKILL.md` | `$plantuml-create` |
+| [Cursor](https://prod.cursor.com/help/customization/skills) | `.agents/skills/<skill-name>/SKILL.md` | `/plantuml-create` |
+
+### Step-by-Step Installation
+
+Select the setup command matching your operating system. Run these commands from your **target project root**.
+
+> 💡 **Note:** The examples below target `.agents/skills` (for Codex/Cursor). If you are using Claude Code, change the destination path variable to `.claude/skills`.
+
+#### 🌐 macOS & Linux (Symbolic Links)
+Creating symlinks allows the agent to automatically receive skill updates whenever you run `ai-architect init` in the future.
+```bash
+SKILLS_ROOT=".agents/skills" # Use ".claude/skills" for Claude Code
+mkdir -p "$SKILLS_ROOT"
+for name in plantuml-create plantuml-modify plantuml-verify self-correct; do
+    ln -s "$(pwd)/.ai-architect/skills/$name" "$SKILLS_ROOT/$name"
+done
+```
+
+#### 🪟 Windows (File Copying)
+Creating a symbolic link on Windows may require Administrator privileges or Developer Mode. Copy the folders when you want a straightforward installation:
+```powershell
+$skillsRoot = ".agents/skills" # Use ".claude/skills" for Claude Code
+New-Item -ItemType Directory -Force -Path $skillsRoot | Out-Null
+foreach ($name in @("plantuml-create", "plantuml-modify", "plantuml-verify", "self-correct")) {
+    $source = Join-Path ".ai-architect/skills" $name
+    $target = Join-Path $skillsRoot $name
+    if (Test-Path -LiteralPath $target) { throw "Skill already exists: $target" }
+    Copy-Item -LiteralPath $source -Destination $target -Recurse
+}
+```
+
+Copies do not update when you rerun `ai-architect init`. After a package upgrade, review and replace the four copied skill folders to pick up changes. The command above stops if a destination already exists, so it cannot silently overwrite a skill you edited.
+
+For a Windows installation that follows updates without copying, use directory junctions instead. On this workstation, `New-Item -ItemType Junction` works without elevation and exposes `SKILL.md` at the discovery path:
+
+```powershell
+$skillsRoot = ".agents/skills" # Use ".claude/skills" for Claude Code
+New-Item -ItemType Directory -Force -Path $skillsRoot | Out-Null
+foreach ($name in @("plantuml-create", "plantuml-modify", "plantuml-verify", "self-correct")) {
+    $source = (Resolve-Path ".ai-architect/skills/$name").Path
+    $target = Join-Path $skillsRoot $name
+    if (Test-Path -LiteralPath $target) { throw "Skill already exists: $target" }
+    New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+}
+```
+
+Check discovery in your agent after creating junctions; its documentation does not explicitly guarantee support for Windows junctions. If it does not discover them, use copies. Recreate junctions if you move the project.
+
+### Verification & Usage
+
+1. **Verify files:** Check that all four `SKILL.md` files exist under your chosen destination directory. Reopen your agent if they do not immediately appear.
+2. **Test discovery:** Test the connection by invoking `plantuml-create` with a short, simple prompt. In the Codex CLI, you can type `/skills` to list all discovered skills.
+3. **Available Commands:**
+   * **Claude Code / Cursor:** `/plantuml-create`, `/plantuml-modify`, `/plantuml-verify`
+   * **Codex:** `$plantuml-create`, `$plantuml-modify`, `$plantuml-verify`
+   * *Note:* The create or modify workflow calls `self-correct` when it encounters a confirmed syntax error. Installing the skill does not activate it independently.
+
+### How Skills Use Project Context
+
+#### 1. Rules and Project Context
+* **Custom Rules:** When running, skills look for the `.ai-architect/references/<diagram_type>_rules.md` file (if it exists).
+* **How it works:** Your requirements provide the facts, while these rule files guide the agent on how to model the diagram before it applies standard PlantUML specifications.
+* **Saving Data:** The `init` command will not overwrite these files if you run it again. It creates the necessary directory, but the agent must have operating system write permissions to save any new learned rules.
+
+#### 2. Validating and Checking Diagrams
+* **Syntax Validation:** Skills use an available PlantUML MCP tool or local renderer to check diagrams for errors. If the syntax check cannot be completed, they report it as blocked.
+* **Separate Checks:** The system reviews whether the diagram meets requirements and is easy to read separately from the actual rendering process.
+
+#### 3. Automatic Error Correction (Self-Correct)
+* **Attempt Limit:** If a confirmed syntax error occurs while creating or editing a diagram, the system will try to fix it automatically. It will make a maximum of **three different attempts**.
+* **Learning from Errors:** Once the diagram is successfully fixed and saved, the system writes a unique prevention rule in English so it won't repeat that mistake.
+* **When Rules are NOT Created:** The system will not save a new syntax rule if:
+  * The renderer crashes or Graphviz fails.
+  * The diagram renders successfully but the actual meaning or logic is wrong.
+* **Verification Command:** The `plantuml-verify` tool is strictly read-only. It won't fix the code for you, but it can suggest how you can correct it.
+
+#### 4. MCP Configuration
+* **Important Note:** Registering your skills does not automatically connect the PlantUML MCP server. You need to configure the MCP server separately by following the setup steps below.
+
+---
 
 ## Connect PlantUML MCP
 
-Open the generated example and merge its `plantuml` entry with existing servers:
+Open the generated `.ai-architect/mcp-config-example.json` file and merge its `plantuml` entry into your agent's configuration file:
 
-| Client | Project configuration |
-| --- | --- |
-| [Cursor](https://docs.cursor.com/context/model-context-protocol) | `.cursor/mcp.json`, under `mcpServers` |
-| [Claude Code](https://code.claude.com/docs/en/mcp) | `.mcp.json` at the project root, under `mcpServers` |
-| [Codex](https://developers.openai.com/codex/mcp) | `.codex/config.toml`, translated to TOML |
+| Client | Configuration File Location | Format |
+| --- | --- | --- |
+| [Claude Code](https://code.claude.com/docs/en/mcp) | `.mcp.json` at the project root, under `mcpServers` | JSON |
+| [Cursor](https://prod.cursor.com/help/customization/mcp) | `.cursor/mcp.json`, under `mcpServers` | JSON |
+| [Codex](https://developers.openai.com/codex/mcp) | `.codex/config.toml`, under `mcp_servers` | TOML |
 
-For Codex on Windows, use the same URL and package version as the generated
-JSON, with a Windows command wrapper:
+### Configuration Templates
 
+> ⚠️ **Important:** Replace the `PLANTUML_SERVER_URL` value below with the actual `plantuml_server_url` from your project's `.ai-architect/config.json`. Preserve any other configured MCP servers in your file.
+
+#### 🌐 Configuration for macOS & Linux (POSIX)
+
+**JSON-based clients (Claude Code, Cursor):**
+```json
+{
+  "mcpServers": {
+    "plantuml": {
+      "command": "npx",
+      "args": ["-y", "plantuml-mcp-server@0.2.4"],
+      "env": {
+        "PLANTUML_SERVER_URL": "https://www.plantuml.com/plantuml"
+      }
+    }
+  }
+}
+```
+
+**TOML-based clients (Codex):**
+```toml
+[mcp_servers.plantuml]
+command = "npx"
+args = ["-y", "plantuml-mcp-server@0.2.4"]
+
+[mcp_servers.plantuml.env]
+PLANTUML_SERVER_URL = "https://www.plantuml.com/plantuml"
+```
+
+#### 🪟 Configuration for Windows
+
+**JSON-based clients (Claude Code, Cursor):**
+```json
+{
+  "mcpServers": {
+    "plantuml": {
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "npx.cmd", "-y", "plantuml-mcp-server@0.2.4"],
+      "env": {
+        "PLANTUML_SERVER_URL": "https://www.plantuml.com/plantuml"
+      }
+    }
+  }
+}
+```
+
+**TOML-based clients (Codex):**
 ```toml
 [mcp_servers.plantuml]
 command = "cmd.exe"
@@ -34,40 +165,19 @@ args = ["/d", "/c", "npx", "-y", "plantuml-mcp-server@0.2.4"]
 PLANTUML_SERVER_URL = "https://www.plantuml.com/plantuml"
 ```
 
-Replace the URL with `plantuml_server_url` from your project's `config.json`.
-On POSIX, use `command = "npx"` and
-`args = ["-y", "plantuml-mcp-server@0.2.4"]`. On Windows, a JSON-based client
-may need `npx.cmd` instead of `npx`. Preserve other configured MCP servers.
-Restart or reload the client, approve/trust project configuration when prompted,
-then check that PlantUML tools are available. In Codex, run `codex mcp list`
-or use `/mcp` in its CLI; in Claude Code, run `claude mcp get plantuml`.
+### Verification
 
-## Make the Skills Available
+After updating the configuration file, restart or reload your client workspace. Approve or trust the new project configuration when prompted by your agent.
 
-`init` copies `plantuml-create`, `plantuml-modify`, `plantuml-verify`, and
-`self-correct` into
-`.ai-architect/skills/`. If your agent does not discover that directory, point it
-at the `SKILL.md` files or install the skill folders in its discovery location.
-The skills read the current project's `.ai-architect/specs/` even when registered
-elsewhere. Copying skill files does not itself connect PlantUML MCP.
-The skills also read the matching `.ai-architect/references/<diagram_type>_rules.md`
-when present. Requirements supply the facts; project rules guide modeling ahead
-of the baseline type specification. `init` preserves these files on repeat runs.
-It creates the directory but cannot override operating-system access controls;
-the agent must have write access to record a learned rule.
+To verify that the PlantUML MCP tools are active, run the check command for your specific client:
+* **Claude Code:** Run `claude mcp get plantuml` in the terminal.
+* **Codex:** Run `codex mcp list` or use the `/mcp` command in its CLI.
+* **Cursor:** Open **Customize → MCPs** to inspect the server; check **MCP Logs** in the Output panel if it fails to connect.
 
-An available local PlantUML renderer can also validate diagrams. The skills
-must report when syntax validation cannot be completed, and they check
-requirements and readability separately from rendering.
-
-When create or modify encounters a **confirmed syntax error**, `self-correct`
-tries at most three distinct fixes and records a deduplicated English prevention
-rule only after a valid diagram is saved. A renderer outage, Graphviz failure,
-or successful render with incorrect meaning does not create a syntax rule.
-`plantuml-verify` remains read-only and may recommend a separate correction.
+---
 
 ## See Also
 
-- [Getting Started](getting-started.md) — create the workspace first
-- [Configuration](configuration.md) — choose a local or internal renderer
-- [Development](development.md) — this repository's additional MCP tools
+* [Getting Started](getting-started.md) — create the workspace first
+* [Configuration](configuration.md) — choose a local or internal renderer
+* [Development](development.md) — this repository's additional MCP tools
