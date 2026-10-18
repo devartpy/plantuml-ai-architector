@@ -1,4 +1,4 @@
-[← Agent Setup](agent-setup.md) · [Back to README](../README.md)
+[← Using Skills](skills-usage.md) · [Back to README](../README.md)
 
 # Development
 
@@ -102,3 +102,4 @@ documents under `docs/specs/`. Use one specification workflow per feature.
 
 - [Getting Started](getting-started.md) — install and run the CLI
 - [Agent Setup](agent-setup.md) — generated PlantUML MCP example
+- [Using the Diagram Skills](skills-usage.md) — invoke workflows and select a type

@@ -1,4 +1,4 @@
-[← Configuration](configuration.md) · [Back to README](../README.md) · [Development →](development.md)
+[← Configuration](configuration.md) · [Back to README](../README.md) · [Using Skills →](skills-usage.md)
 
 # Agent Setup
 
@@ -12,11 +12,11 @@ The `PLANTUML_SERVER_URL` value is the renderer from `config.json`, not an MCP U
 
 Run `ai-architect init` **in the project where you want to draw diagrams**. It places the four skills in `.ai-architect/skills/`, but that package-managed directory is not a standard skill-discovery location. Expose the **skill folders** in your agent's discovery directory based on the table below:
 
-| Agent | Destination in the target project | Invoke after setup |
-| --- | --- | --- |
-| [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/<skill-name>/SKILL.md` | `/plantuml-create` |
-| [Codex](https://learn.chatgpt.com/docs/build-skills) | `.agents/skills/<skill-name>/SKILL.md` | `$plantuml-create` |
-| [Cursor](https://prod.cursor.com/help/customization/skills) | `.agents/skills/<skill-name>/SKILL.md` | `/plantuml-create` |
+| Agent | Destination in the target project |
+| --- | --- |
+| [Claude Code](https://code.claude.com/docs/en/skills) | `.claude/skills/<skill-name>/SKILL.md` |
+| [Codex](https://learn.chatgpt.com/docs/build-skills) | `.agents/skills/<skill-name>/SKILL.md` |
+| [Cursor](https://prod.cursor.com/help/customization/skills) | `.agents/skills/<skill-name>/SKILL.md` |
 
 ### Step-by-Step Installation
 
@@ -64,36 +64,11 @@ foreach ($name in @("plantuml-create", "plantuml-modify", "plantuml-verify", "se
 
 Check discovery in your agent after creating junctions; its documentation does not explicitly guarantee support for Windows junctions. If it does not discover them, use copies. Recreate junctions if you move the project.
 
-### Verification & Usage
+### Verify Skill Installation
 
-1. **Verify files:** Check that all four `SKILL.md` files exist under your chosen destination directory. Reopen your agent if they do not immediately appear.
-2. **Test discovery:** Test the connection by invoking `plantuml-create` with a short, simple prompt. In the Codex CLI, you can type `/skills` to list all discovered skills.
-3. **Available Commands:**
-   * **Claude Code / Cursor:** `/plantuml-create`, `/plantuml-modify`, `/plantuml-verify`
-   * **Codex:** `$plantuml-create`, `$plantuml-modify`, `$plantuml-verify`
-   * *Note:* The create or modify workflow calls `self-correct` when it encounters a confirmed syntax error. Installing the skill does not activate it independently.
+Check that all four `SKILL.md` files exist under your agent's discovery directory. Reopen the agent if they do not appear. In Codex CLI, `/skills` lists discovered skills. Then follow [Using the Diagram Skills](skills-usage.md) for invocation examples and expected behavior.
 
-### How Skills Use Project Context
-
-#### 1. Rules and Project Context
-* **Custom Rules:** When running, skills look for the `.ai-architect/references/<diagram_type>_rules.md` file (if it exists).
-* **How it works:** Your requirements provide the facts, while these rule files guide the agent on how to model the diagram before it applies standard PlantUML specifications.
-* **Saving Data:** The `init` command will not overwrite these files if you run it again. It creates the necessary directory, but the agent must have operating system write permissions to save any new learned rules.
-
-#### 2. Validating and Checking Diagrams
-* **Syntax Validation:** Skills use an available PlantUML MCP tool or local renderer to check diagrams for errors. If the syntax check cannot be completed, they report it as blocked.
-* **Separate Checks:** The system reviews whether the diagram meets requirements and is easy to read separately from the actual rendering process.
-
-#### 3. Automatic Error Correction (Self-Correct)
-* **Attempt Limit:** If a confirmed syntax error occurs while creating or editing a diagram, the system will try to fix it automatically. It will make a maximum of **three different attempts**.
-* **Learning from Errors:** Once the diagram is successfully fixed and saved, the system writes a unique prevention rule in English so it won't repeat that mistake.
-* **When Rules are NOT Created:** The system will not save a new syntax rule if:
-  * The renderer crashes or Graphviz fails.
-  * The diagram renders successfully but the actual meaning or logic is wrong.
-* **Verification Command:** The `plantuml-verify` tool is strictly read-only. It won't fix the code for you, but it can suggest how you can correct it.
-
-#### 4. MCP Configuration
-* **Important Note:** Registering your skills does not automatically connect the PlantUML MCP server. You need to configure the MCP server separately by following the setup steps below.
+Registering skills does not connect PlantUML MCP. Configure the server separately below.
 
 ---
 
@@ -179,5 +154,5 @@ To verify that the PlantUML MCP tools are active, run the check command for your
 ## See Also
 
 * [Getting Started](getting-started.md) — create the workspace first
+* [Using the Diagram Skills](skills-usage.md) — invoke and choose a diagram type
 * [Configuration](configuration.md) — choose a local or internal renderer
-* [Development](development.md) — this repository's additional MCP tools

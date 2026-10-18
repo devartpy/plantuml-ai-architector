@@ -100,6 +100,7 @@ When the agent follows the bundled create or modify skills, it reads matching ru
 | [Getting Started](docs/getting-started.md) | Basic installation pipelines, initialization protocols, and upgrade reruns. |
 | [Configuration](docs/configuration.md) | Dynamic diagram target paths, custom local renderer URLs, and variable limits. |
 | [Agent setup](docs/agent-setup.md) | Binding the PlantUML Model Context Protocol (MCP) server and agent skill discovery. |
+| [Using the diagram skills](docs/skills-usage.md) | Invoke workflows and select one of seven diagram types. |
 | [Development](docs/development.md) | Execution tests, local installation checks, and Git release tags. |
 
 ### Diagram Resources

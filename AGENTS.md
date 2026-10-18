@@ -52,4 +52,5 @@ Before changing CLI or template handling, read the existing code and relevant do
 | Getting Started | [docs/getting-started.md](docs/getting-started.md) | Install and initialize |
 | Configuration | [docs/configuration.md](docs/configuration.md) | Project settings |
 | Agent Setup | [docs/agent-setup.md](docs/agent-setup.md) | MCP and skills |
+| Using the Diagram Skills | [docs/skills-usage.md](docs/skills-usage.md) | Skill invocations and diagram types |
 | Development | [docs/development.md](docs/development.md) | Tests and Git release process |
