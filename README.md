@@ -21,6 +21,8 @@ Install the package directly from the public GitHub repository into your target 
 cd C:\path\to\your-project
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install "git+https://github.com/devartpy/plantuml-ai-architector.git"
+# if uv is used
+uv pip install "git+https://github.com/devartpy/plantuml-ai-architector.git"
 ```
 
 **On macOS / Linux:**
